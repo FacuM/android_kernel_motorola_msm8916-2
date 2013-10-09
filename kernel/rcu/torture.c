@@ -1712,7 +1712,6 @@ static int rcu_torture_barrier_cbs(void *arg)
 {
 	long myid = (long)arg;
 	bool lastphase = 0;
-	bool newphase;
 	struct rcu_head rcu;
 
 	init_rcu_head_on_stack(&rcu);
@@ -1720,11 +1719,10 @@ static int rcu_torture_barrier_cbs(void *arg)
 	set_user_nice(current, 19);
 	do {
 		wait_event(barrier_cbs_wq[myid],
-			   (newphase =
-			    ACCESS_ONCE(barrier_phase)) != lastphase ||
+			   barrier_phase != lastphase ||
 			   kthread_should_stop() ||
 			   fullstop != FULLSTOP_DONTSTOP);
-		lastphase = newphase;
+		lastphase = barrier_phase;
 		smp_mb(); /* ensure barrier_phase load before ->call(). */
 		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
 			break;
@@ -1761,7 +1759,7 @@ static int rcu_torture_barrier(void *arg)
 		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
 			break;
 		n_barrier_attempts++;
-		cur_ops->cb_barrier(); /* Implies smp_mb() for wait_event(). */
+		cur_ops->cb_barrier();
 		if (atomic_read(&barrier_cbs_invoked) != n_barrier_cbs) {
 			n_rcu_torture_barrier_error++;
 			WARN_ON_ONCE(1);
