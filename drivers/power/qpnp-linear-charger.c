@@ -25,6 +25,13 @@
 #include <linux/bitops.h>
 #include <linux/leds.h>
 
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
+#ifdef CONFIG_STATE_HELPER
+#include <linux/state_helper.h>
+#endif
+
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))
 #define LBC_MASK(MSB_BIT, LSB_BIT) \
@@ -1592,6 +1599,9 @@ static int qpnp_batt_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = get_prop_capacity(chip);
+	#ifdef CONFIG_STATE_HELPER
+		batt_level_notify(val->intval);
+    #endif
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = get_prop_current_now(chip);
