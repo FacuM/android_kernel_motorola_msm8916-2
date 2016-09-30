@@ -222,13 +222,10 @@ static struct binder_transaction_log_entry *binder_transaction_log_add(
 struct binder_context {
 	struct binder_node *binder_context_mgr_node;
 	kuid_t binder_context_mgr_uid;
-	const char *name;
 };
 
-struct binder_device {
-	struct hlist_node hlist;
-	struct miscdevice miscdev;
-	struct binder_context context;
+static struct binder_context global_context = {
+	.binder_context_mgr_uid = INVALID_UID,
 };
 
 struct binder_work {
@@ -1902,8 +1899,6 @@ static void binder_transaction(struct binder_proc *proc,
 	struct binder_transaction *in_reply_to = NULL;
 	struct binder_transaction_log_entry *e;
 	uint32_t return_error;
-	struct binder_buffer_object *last_fixup_obj = NULL;
-	binder_size_t last_fixup_min_off = 0;
 	struct binder_context *context = proc->context;
 
 	e = binder_transaction_log_add(&binder_transaction_log);
@@ -3529,6 +3524,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		return -ENOMEM;
 	get_task_struct(current);
 	proc->tsk = current;
+	proc->context = &global_context;
 	INIT_LIST_HEAD(&proc->todo);
 	init_waitqueue_head(&proc->wait);
 	proc->default_priority = task_nice(current);
