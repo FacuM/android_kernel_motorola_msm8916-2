@@ -3340,6 +3340,8 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct binder_proc *proc = filp->private_data;
 	struct binder_context *context = proc->context;
 	struct binder_thread *thread;
+        struct binder_node *binder_context_mgr_node;
+	struct binder_context *context = proc->context;
 	unsigned int size = _IOC_SIZE(cmd);
 	void __user *ubuf = (void __user *)arg;
 
@@ -3422,16 +3424,16 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = security_binder_set_context_mgr(proc->tsk);
 		if (ret < 0)
 			goto err;
-		if (uid_valid(binder_context_mgr_uid)) {
-			if (!uid_eq(binder_context_mgr_uid, current->cred->euid)) {
+		if (uid_valid(context->binder_context_mgr_uid)) {
+			if (!uid_eq(context->binder_context_mgr_uid, current->cred->euid)) {
 				pr_err("BINDER_SET_CONTEXT_MGR bad uid %d != %d\n",
 				       from_kuid(&init_user_ns, current->cred->euid),
-				       from_kuid(&init_user_ns, binder_context_mgr_uid));
+				       from_kuid(&init_user_ns, context->binder_context_mgr_uid));
 				ret = -EPERM;
 				goto err;
 			}
 		} else
-			binder_context_mgr_uid = current->cred->euid;
+			context->binder_context_mgr_uid = current->cred->euid;
 		binder_context_mgr_node = binder_new_node(proc, 0, 0);
 		if (binder_context_mgr_node == NULL) {
 			ret = -ENOMEM;
@@ -3448,7 +3450,8 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		binder_free_thread(proc, thread);
 		thread = NULL;
 		break;
-	case BINDER_VERSION:
+	case BINDER_VERSION: {
+                struct binder_version __user *ver = ubuf;
 		if (size != sizeof(struct binder_version)) {
 			ret = -EINVAL;
 			goto err;
@@ -3486,7 +3489,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto err;
 		}
 		break;
-	}
+}
 	default:
 		ret = -EINVAL;
 		goto err;
