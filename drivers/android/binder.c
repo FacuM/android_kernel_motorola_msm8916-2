@@ -518,16 +518,6 @@ static inline long copy_from_user_preempt_disabled(void *to, const void __user *
 	return ret;
 }
 
-static inline long copy_from_user_preempt_disabled(void *to, const void __user *from, long n)
-{
-	long ret;
-
-	preempt_enable_no_resched();
-	ret = copy_from_user(to, from, n);
-	preempt_disable();
-	return ret;
-}
-
 #define get_user_preempt_disabled(x, ptr)	\
 ({						\
 	int __ret;				\
