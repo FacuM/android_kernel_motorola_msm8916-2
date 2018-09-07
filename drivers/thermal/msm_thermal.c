@@ -139,12 +139,6 @@ enum thermal_threshold {
 	THRESHOLD_MAX_NR,
 };
 
-enum sensor_id_type {
-	THERM_ZONE_ID,
-	THERM_TSENS_ID,
-	THERM_ID_MAX_NR,
-};
-
 struct cluster_info {
 	int cluster_id;
 	uint32_t entity_count;
@@ -176,22 +170,6 @@ struct cpu_info {
 	uint32_t limited_min_freq;
 	bool freq_thresh_clear;
 	struct cluster_info *parent_ptr;
-};
-
-struct threshold_info;
-struct therm_threshold {
-	int32_t sensor_id;
-	enum sensor_id_type id_type;
-	struct sensor_threshold threshold[MAX_THRESHOLD];
-	int32_t trip_triggered;
-	void (*notify)(struct therm_threshold *);
-	struct threshold_info *parent;
-};
-
-struct threshold_info {
-	uint32_t thresh_ct;
-	bool thresh_triggered;
-	struct therm_threshold *thresh_list;
 };
 
 struct rail {
