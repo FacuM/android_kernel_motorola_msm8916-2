@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,7 +14,11 @@
 #ifndef __MSM_THERMAL_H
 #define __MSM_THERMAL_H
 
+#include <linux/thermal.h>
+
+#define MAX_THRESHOLD  2
 #define TSENS_NAME_MAX 20
+#define MONITOR_ALL_TSENS -1
 #define HOTPLUG_DEVICE "hotplug"
 #define CPU0_DEVICE     "cpu0"
 #define CPU1_DEVICE     "cpu1"
@@ -157,6 +161,61 @@ extern int msm_thermal_get_freq_plan_size(uint32_t cluster,
 extern int msm_thermal_get_cluster_freq_plan(uint32_t cluster,
 	unsigned int *table_ptr);
 /**
+ * sensor_mgr_init_threshold - Initialize thresholds data structure for
+ *                             sensor(s) with high and low thresholds and
+ *                             threshold callback.
+ *
+ * @dev: Client device structure.
+ * @thresh_inp: Client threshold data structure.
+ * @sensor_id: Sensor h/w ID to be monitored. Use MONITOR_ALL_TSENS
+ *             to monitor all temperature sensors.
+ *
+ * @high_temp: Trigger threshold value for sensor_id or all sensors.
+ * @low_temp: Clear threshold value for sensor_id or all sensors.
+ * @callback: Callback pointer for threshold notification.
+ *
+ * Returns which threshold is set on success, negative error number
+ * on failure. MACRO IS_HI_THRESHOLD_SET/IS_LOW_THRESHOLD_SET can be used
+ * to decipher which threshold being set.
+ */
+extern int sensor_mgr_init_threshold(struct device *dev,
+				struct threshold_info *thresh_inp,
+				int sensor_id, int32_t high_temp,
+				int32_t low_temp,
+				void (*callback)(struct therm_threshold *));
+/**
+ * sensor_mgr_convert_id_and_set_threshold - It accepts sensor h/w ID, converts
+ *                                           it to sensor zone id and sets
+ *                                           thermal threshold for those
+ *                                           sensors listed in threshold info.
+ *
+ * @thresh_inp: Client threshold data structure.
+ *
+ * Returns zero on success, negative error number on failure.
+ */
+extern int sensor_mgr_convert_id_and_set_threshold(
+				struct threshold_info *thresh_inp);
+/**
+ * sensor_mgr_set_threshold- It sets thermal threshold trips for a sensor.
+ *
+ * @zone_id: Thermal zone ID for the sensor.
+ * @threshold: threshold info for the sensor.
+ *
+ * Returns zero on success, negative error number on failure.
+ */
+extern int sensor_mgr_set_threshold(uint32_t zone_id,
+				struct sensor_threshold *threshold);
+/**
+ * sensor_mgr_remove_threshold- It cancels threshold notification and
+ *                              removes threshold from sensor manager
+ *                              threshold list.
+ *
+ * @dev: Client device structure.
+ * @thresh_inp: The threshold info which needs to be removed.
+ */
+extern void sensor_mgr_remove_threshold(struct device *dev,
+				struct threshold_info *thresh_inp);
+/**
  * devmgr_register_mitigation_client - Register for a device and
  *                                     gets a handle for mitigation.
  * @dev: Client device structure.
@@ -221,6 +280,28 @@ static inline int msm_thermal_get_cluster_freq_plan(uint32_t cluster,
 	unsigned int *table_ptr);
 {
 	return -ENOSYS;
+}
+static inline int sensor_mgr_init_threshold(struct device *dev,
+				struct threshold_info *thresh_inp,
+				int sensor_id, int32_t high_temp,
+				int32_t low_temp,
+				void (*callback)(struct therm_threshold *))
+{
+	return -ENOSYS;
+}
+static inline int sensor_mgr_convert_id_and_set_threshold(
+			struct threshold_info *thresh_inp)
+{
+	return -ENOSYS;
+}
+static inline int sensor_mgr_set_threshold(uint32_t zone_id,
+			struct sensor_threshold *threshold)
+{
+	return -ENOSYS;
+}
+static inline void sensor_mgr_remove_threshold(struct device *dev,
+				struct threshold_info *thresh_inp)
+{
 }
 static inline struct device_clnt_data *devmgr_register_mitigation_client(
 				struct device *dev,
