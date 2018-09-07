@@ -72,6 +72,12 @@ static int zram_major;
 static struct zram *zram_devices;
 static const char *default_compressor = "lzo";
 
+/*
+ * We don't need to see memory allocation errors more than once every 1
+ * second to know that a problem is occurring.
+ */
+#define ALLOC_ERROR_LOG_RATE_MS 1000
+
 /* Module params (documentation at end) */
 static unsigned int num_devices = 1;
 
@@ -106,6 +112,7 @@ static int zram_show_cb(int id, void *ptr, void *data)
 {
 	struct zram *zram = (struct zram *)ptr;
 	struct zram_meta *meta = zram->meta;
+	static unsigned long zram_rs_time;
 
 	if (!down_read_trylock(&zram->init_lock))
 		return 0;
