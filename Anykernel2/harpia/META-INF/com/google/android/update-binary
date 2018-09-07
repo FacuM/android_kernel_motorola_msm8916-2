@@ -37,6 +37,7 @@ ui_print "|=                                              =|"
 ui_print "|=      LOS_CUSTOM-Kernel_for_Moto_G4_Play      =|"
 ui_print "|=                                              =|"
 ui_print "|=                                              =|"
+ui_print "|================================================|"
 ui_print "|=           Extracting_flashing_tools          =|"
 ui_print "|================================================|"
 show_progress 1.34 4;
@@ -71,7 +72,7 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
 fi;
 
 ui_print "|================================================|"
-ui_print "|=========Building_and_installing_Kernel=========|"
+ui_print "|=         Building and installing kernel       =|"
 ui_print "|================================================|"
 for i in $($bb --list); do
   $bb ln -s $bb /tmp/anykernel/bin/$i;
@@ -115,7 +116,7 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.modules)" == 1 ]; then
 fi;
 
 ui_print "|================================================|"
-ui_print "|===========Cleaning_up_flashing_tools===========|"
+ui_print "|          Cleaning up flashing tools            |"
 ui_print "|================================================|"
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
   cleanup;
@@ -125,9 +126,11 @@ umount /system;
 umount /vendor 2>/dev/null;
 umount /data 2>/dev/null;
 ui_print "|================================================|"
-ui_print "|=========Kernel_installation_completed!=========|"
+ui_print "|=        Kernel installation completed!         |"
 ui_print "|================================================|"
-ui_print "|================================================|"
-ui_print "|===========DEVICE_IS_FELLING_AWESOME============|"
-ui_print "|================================================|"
+ui_print "|=                                              =|"
+ui_print "|=                                              =|"
+ui_print "|=         You can now reboot your device.      =|"
+ui_print "|=                                              =|"
+ui_print "|=                                              =|"
 ui_print "|================================================|"
