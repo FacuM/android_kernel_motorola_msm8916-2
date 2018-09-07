@@ -37,6 +37,7 @@
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_qos.h>
+#include <linux/vmalloc.h>
 
 #include <soc/qcom/subsystem_restart.h>
 #include <soc/qcom/subsystem_notif.h>
@@ -185,6 +186,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_SERIAL_NUM      (WCNSS_USR_CTRL_MSG_START + 1)
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
 #define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
+#define WCNSS_USR_WLAN_NV_NAME    (WCNSS_USR_CTRL_MSG_START + 4)
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 
@@ -398,7 +400,7 @@ static struct {
 	int	user_cal_read;
 	int	user_cal_available;
 	u32	user_cal_rcvd;
-	u32	user_cal_exp_size;
+	int	user_cal_exp_size;
 	int	iris_xo_mode_set;
 	int	fw_vbatt_state;
 	char	wlan_nv_macAddr[WLAN_MAC_ADDR_SIZE];
@@ -424,6 +426,7 @@ static struct {
 	int pc_disabled;
 	struct delayed_work wcnss_pm_qos_del_req;
 	struct mutex pm_qos_mutex;
+	char wcnss_nv_name[WLAN_NV_NAME_SIZE];
 } *penv = NULL;
 
 static ssize_t wcnss_wlan_macaddr_store(struct device *dev,
@@ -2031,23 +2034,21 @@ void extract_cal_data(int len)
 		return;
 	}
 
-	mutex_lock(&penv->dev_lock);
 	rc = smd_read(penv->smd_ch, (unsigned char *)&calhdr,
 			sizeof(struct cal_data_params));
 	if (rc < sizeof(struct cal_data_params)) {
 		pr_err("wcnss: incomplete cal header read from smd\n");
-		mutex_unlock(&penv->dev_lock);
 		return;
 	}
 
 	if (penv->fw_cal_exp_frag != calhdr.frag_number) {
 		pr_err("wcnss: Invalid frgament");
-		goto unlock_exit;
+		goto exit;
 	}
 
 	if (calhdr.frag_size > WCNSS_MAX_FRAME_SIZE) {
 		pr_err("wcnss: Invalid fragment size");
-		goto unlock_exit;
+		goto exit;
 	}
 
 	if (penv->fw_cal_available) {
@@ -2056,9 +2057,8 @@ void extract_cal_data(int len)
 		penv->fw_cal_exp_frag++;
 		if (calhdr.msg_flags & LAST_FRAGMENT) {
 			penv->fw_cal_exp_frag = 0;
-			goto unlock_exit;
+			goto exit;
 		}
-		mutex_unlock(&penv->dev_lock);
 		return;
 	}
 
@@ -2066,7 +2066,7 @@ void extract_cal_data(int len)
 		if (calhdr.total_size > MAX_CALIBRATED_DATA_SIZE) {
 			pr_err("wcnss: Invalid cal data size %d",
 				calhdr.total_size);
-			goto unlock_exit;
+			goto exit;
 		}
 		kfree(penv->fw_cal_data);
 		penv->fw_cal_rcvd = 0;
@@ -2074,10 +2074,11 @@ void extract_cal_data(int len)
 				GFP_KERNEL);
 		if (penv->fw_cal_data == NULL) {
 			smd_read(penv->smd_ch, NULL, calhdr.frag_size);
-			goto unlock_exit;
+			goto exit;
 		}
 	}
 
+	mutex_lock(&penv->dev_lock);
 	if (penv->fw_cal_rcvd + calhdr.frag_size >
 			MAX_CALIBRATED_DATA_SIZE) {
 		pr_err("calibrated data size is more than expected %d",
@@ -2112,6 +2113,8 @@ void extract_cal_data(int len)
 
 unlock_exit:
 	mutex_unlock(&penv->dev_lock);
+
+exit:
 	wcnss_send_cal_rsp(fw_status);
 	return;
 }
@@ -2589,10 +2592,25 @@ static int wcnss_ctrl_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
+int wcnss_get_wlan_nv_name(char *nv_name)
+{
+	if (!penv)
+		return -ENODEV;
+	if (penv->wcnss_nv_name[0] != 0) {
+		memcpy(nv_name, penv->wcnss_nv_name, WLAN_NV_NAME_SIZE);
+		pr_debug("%s: Get NV name: %s" "\n", __func__,
+			penv->wcnss_nv_name);
+		return 0;
+	}
+	pr_err("%s: No NV name\n", __func__);
+	return 1;
+}
+EXPORT_SYMBOL(wcnss_get_wlan_nv_name);
 
 void process_usr_ctrl_cmd(u8 *buf, size_t len)
 {
 	u16 cmd = buf[0] << 8 | buf[1];
+	s8 fname_length;
 
 	switch (cmd) {
 
@@ -2620,6 +2638,20 @@ void process_usr_ctrl_cmd(u8 *buf, size_t len)
 			penv->wlan_nv_macAddr[0], penv->wlan_nv_macAddr[1],
 			penv->wlan_nv_macAddr[2], penv->wlan_nv_macAddr[3],
 			penv->wlan_nv_macAddr[4], penv->wlan_nv_macAddr[5]);
+		break;
+	case WCNSS_USR_WLAN_NV_NAME:
+		fname_length = (buf[2] < WLAN_NV_NAME_SIZE) ?
+				buf[2]:WLAN_NV_NAME_SIZE-1;
+
+		if (fname_length < 0)
+			pr_debug("%s: Invalid filename length for filename %d\n",
+				 __func__, fname_length);
+		pr_debug("%s: fname length was %d",
+			 __func__, fname_length);
+		memcpy(penv->wcnss_nv_name, &buf[3], fname_length);
+		penv->wcnss_nv_name[WLAN_NV_NAME_SIZE-1] = 0;
+		pr_err("%s: user nv set to %s, fname length was %d",
+			__func__, penv->wcnss_nv_name, fname_length);
 		break;
 
 	default:
@@ -3314,9 +3346,9 @@ wcnss_wlan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	penv->pdev = pdev;
+	penv->wcnss_nv_name[0] = 0;
 
-	penv->user_cal_data =
-		devm_kzalloc(&pdev->dev, MAX_CALIBRATED_DATA_SIZE, GFP_KERNEL);
+	penv->user_cal_data = vmalloc(MAX_CALIBRATED_DATA_SIZE);
 	if (!penv->user_cal_data) {
 		dev_err(&pdev->dev, "Failed to alloc memory for cal data.\n");
 		return -ENOMEM;
@@ -3369,6 +3401,7 @@ wcnss_wlan_remove(struct platform_device *pdev)
 	if (penv->wcnss_notif_hdle)
 		subsys_notif_unregister_notifier(penv->wcnss_notif_hdle, &wnb);
 	wcnss_remove_sysfs(&pdev->dev);
+	vfree(penv->user_cal_data);
 	penv = NULL;
 	return 0;
 }
