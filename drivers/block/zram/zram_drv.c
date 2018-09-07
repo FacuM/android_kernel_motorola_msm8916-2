@@ -69,8 +69,11 @@ static DEFINE_IDR(zram_index_idr);
 static DEFINE_MUTEX(zram_index_mutex);
 
 static int zram_major;
-static struct zram *zram_devices;
+#ifdef CONFIG_ZRAM_LZ4_COMPRESS
+static const char *default_compressor = "lz4";
+#else
 static const char *default_compressor = "lzo";
+#endif
 
 /*
  * We don't need to see memory allocation errors more than once every 1
@@ -112,7 +115,6 @@ static int zram_show_cb(int id, void *ptr, void *data)
 {
 	struct zram *zram = (struct zram *)ptr;
 	struct zram_meta *meta = zram->meta;
-	static unsigned long zram_rs_time;
 
 	if (!down_read_trylock(&zram->init_lock))
 		return 0;
@@ -1413,12 +1415,6 @@ static ssize_t hot_remove_store(struct class *class,
 	return ret ? ret : count;
 }
 
-/*
- * NOTE: hot_add attribute is not the usual read-only sysfs attribute. In a
- * sense that reading from this file does alter the state of your system -- it
- * creates a new un-initialized zram device and returns back this device's
- * device_id (or an error code if it fails to create a new device).
- */
 static struct class_attribute zram_control_class_attrs[] = {
 	__ATTR(hot_add, S_IRUGO, hot_add_show, NULL),
 	__ATTR(hot_remove, S_IWUSR, NULL, hot_remove_store),
