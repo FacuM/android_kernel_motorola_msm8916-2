@@ -21,7 +21,27 @@
 
 #define  __tlb_remove_pmd_tlb_entry __tlb_remove_pmd_tlb_entry
 
-#include <asm-generic/tlb.h>
+#include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
+
+#define MMU_GATHER_BUNDLE	8
+
+/*
+ * TLB handling.  This allows us to remove pages from the page
+ * tables, and efficiently handle the TLB issues.
+ */
+struct mmu_gather {
+	struct mm_struct	*mm;
+	unsigned int		fullmm;
+	struct vm_area_struct	*vma;
+	unsigned long		start, end;
+	unsigned long		range_start;
+	unsigned long		range_end;
+	unsigned int		nr;
+	unsigned int		max;
+	struct page		**pages;
+	struct page		*local[MMU_GATHER_BUNDLE];
+};
 
 /*
  * There's three ways the TLB shootdown code is used:
@@ -51,6 +71,51 @@ static inline void tlb_add_flush(struct mmu_gather *tlb, unsigned long addr)
 		tlb->start = min(tlb->start, addr);
 		tlb->end = max(tlb->end, addr + PAGE_SIZE);
 	}
+}
+
+static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+{
+	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+
+	if (addr) {
+		tlb->pages = (void *)addr;
+		tlb->max = PAGE_SIZE / sizeof(struct page *);
+	}
+}
+
+static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+{
+	tlb_flush(tlb);
+	free_pages_and_swap_cache(tlb->pages, tlb->nr);
+	tlb->nr = 0;
+	if (tlb->pages == tlb->local)
+		__tlb_alloc_page(tlb);
+}
+
+static inline void
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
+{
+	tlb->mm = mm;
+	tlb->fullmm = !(start | (end+1));
+	tlb->start = start;
+	tlb->end = end;
+	tlb->vma = NULL;
+	tlb->max = ARRAY_SIZE(tlb->local);
+	tlb->pages = tlb->local;
+	tlb->nr = 0;
+	__tlb_alloc_page(tlb);
+}
+
+static inline void
+tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+{
+	tlb_flush_mmu(tlb);
+
+	/* keep the page table cache within bounds */
+	check_pgt_cache();
+
+	if (tlb->pages != tlb->local)
+		free_pages((unsigned long)tlb->pages, 0);
 }
 
 /*

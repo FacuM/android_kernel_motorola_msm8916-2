@@ -44,6 +44,11 @@ static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
 	return chunk->end_addr - chunk->start_addr + 1;
 }
 
+static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
+{
+	return chunk->end_addr - chunk->start_addr + 1;
+}
+
 static int set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
 {
 	unsigned long val, nval;
@@ -264,8 +269,6 @@ void gen_pool_destroy(struct gen_pool *pool)
 		list_del(&chunk->next_chunk);
 
 		end_bit = chunk_size(chunk) >> order;
-		nbytes = sizeof(struct gen_pool_chunk) +
-				BITS_TO_LONGS(end_bit) * sizeof(long);
 		bit = find_next_bit(chunk->bits, end_bit, 0);
 		BUG_ON(bit < end_bit);
 
@@ -319,6 +322,7 @@ u64 gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
 			continue;
 		chunk_len = chunk_size(chunk) >> order;
 
+		end_bit = chunk_size(chunk) >> order;
 retry:
 		start_bit = bitmap_find_next_zero_area_off(chunk->bits, chunk_len,
 						   0, nbits, align_mask,

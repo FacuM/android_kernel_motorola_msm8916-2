@@ -736,14 +736,6 @@ static void crypt_alloc_req(struct crypt_config *cc,
 	    kcryptd_async_done, dmreq_of_req(cc, ctx->req));
 }
 
-static void crypt_free_req(struct crypt_config *cc,
-			   struct ablkcipher_request *req, struct bio *base_bio)
-{
-	struct dm_crypt_io *io = dm_per_bio_data(base_bio, cc->per_bio_data_size);
-	if ((struct ablkcipher_request *)(io + 1) != req)
-		mempool_free(req, cc->req_pool);
-}
-
 /*
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
@@ -878,6 +870,7 @@ static void crypt_io_init(struct dm_crypt_io *io, struct crypt_config *cc,
 	io->base_bio = bio;
 	io->sector = sector;
 	io->error = 0;
+	io->base_io = NULL;
 	io->ctx.req = NULL;
 	atomic_set(&io->io_pending, 0);
 }
@@ -901,7 +894,8 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 		return;
 
 	if (io->ctx.req)
-		crypt_free_req(cc, io->ctx.req, base_bio);
+		mempool_free(io->ctx.req, cc->req_pool);
+	mempool_free(io, cc->io_pool);
 
 	bio_endio(base_bio, error);
 }

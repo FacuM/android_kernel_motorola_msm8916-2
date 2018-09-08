@@ -888,6 +888,25 @@ static int hub_usb3_port_disable(struct usb_hub *hub, int port1)
 	if (!hub_is_superspeed(hub->hdev))
 		return -EINVAL;
 
+	ret = hub_port_status(hub, port1, &portstatus, &portchange);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * USB controller Advanced Micro Devices, Inc. [AMD] FCH USB XHCI
+	 * Controller [1022:7814] will have spurious result making the following
+	 * usb 3.0 device hotplugging route to the 2.0 root hub and recognized
+	 * as high-speed device if we set the usb 3.0 port link state to
+	 * Disabled. Since it's already in USB_SS_PORT_LS_RX_DETECT state, we
+	 * check the state here to avoid the bug.
+	 */
+	if ((portstatus & USB_PORT_STAT_LINK_STATE) ==
+				USB_SS_PORT_LS_RX_DETECT) {
+		dev_dbg(&hub->ports[port1 - 1]->dev,
+			 "Not disabling port; link state is RxDetect\n");
+		return ret;
+	}
+
 	ret = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_SS_DISABLED);
 	if (ret)
 		return ret;
@@ -3024,7 +3043,7 @@ static unsigned wakeup_enabled_descendants(struct usb_device *udev)
 int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	struct usb_hub	*hub = usb_hub_to_struct_hub(udev->parent);
-	struct usb_port *port_dev;
+	struct usb_port *port_dev = hub->ports[udev->portnum - 1];
 	int		port1 = udev->portnum;
 	int		status;
 	bool		really_suspend = true;
@@ -3067,21 +3086,6 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			/* bail if autosuspend is requested */
 			if (PMSG_IS_AUTO(msg))
 				goto err_wakeup;
-		}
-	}
-#ifdef CONFIG_USB_OTG
-	if (!udev->bus->is_b_host && udev->bus->hnp_support &&
-		udev->portnum == udev->bus->otg_port) {
-		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				USB_REQ_SET_FEATURE, 0,
-				USB_DEVICE_B_HNP_ENABLE,
-				0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-		if (status < 0) {
-			otg_send_event(OTG_EVENT_NO_RESP_FOR_HNP_ENABLE);
-			dev_dbg(&udev->dev, "can't enable HNP on port %d, "
-					"status %d\n", port1, status);
-		} else {
-			udev->bus->b_hnp_enable = 1;
 		}
 	}
 #endif

@@ -89,17 +89,6 @@ void fpsimd_flush_thread(void)
 }
 
 /*
- * Save the userland FPSIMD state of 'current' to memory, but only if the state
- * currently held in the registers does in fact belong to 'current'
- */
-void fpsimd_preserve_current_state(void)
-{
-	preempt_disable();
-	fpsimd_save_state(&current->thread.fpsimd_state);
-	preempt_enable();
-}
-
-/*
  * Load an updated userland FPSIMD state for 'current' from memory
  */
 void fpsimd_update_current_state(struct fpsimd_state *state)

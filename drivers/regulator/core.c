@@ -4438,8 +4438,7 @@ static int __init regulator_init_complete(void)
 		if (has_full_constraints) {
 			/* We log since this may kill the system if it
 			 * goes wrong. */
-			if (!suppress_info_printing)
-				rdev_info(rdev, "disabling\n");
+			rdev_info(rdev, "disabling\n");
 			ret = _regulator_do_disable(rdev);
 			if (ret != 0) {
 				rdev_err(rdev, "couldn't disable: %d\n", ret);

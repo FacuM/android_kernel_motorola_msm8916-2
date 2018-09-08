@@ -1546,7 +1546,7 @@ static int hci_rfkill_set_block(void *data, bool blocked)
 {
 	struct hci_dev *hdev = data;
 
-	BT_DBG("%pK name %s blocked %d", hdev, hdev->name, blocked);
+	BT_DBG("%p name %s blocked %d", hdev, hdev->name, blocked);
 
 	if (blocked) {
 		set_bit(HCI_RFKILLED, &hdev->dev_flags);

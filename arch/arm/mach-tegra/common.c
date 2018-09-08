@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/reboot.h>
 #include <linux/of.h>
 #include <linux/irqchip.h>
 #include <linux/clk/tegra.h>

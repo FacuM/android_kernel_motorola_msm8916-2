@@ -400,39 +400,10 @@ u32 arch_timer_get_rate(void)
 	return arch_timer_rate;
 }
 
-static u64 arch_counter_get_cntpct_mem(void)
+u64 arch_timer_read_counter(void)
 {
-	u32 pct_lo, pct_hi, tmp_hi;
-
-	do {
-		pct_hi = readl_relaxed_no_log(arch_counter_base + CNTPCT_HI);
-		pct_lo = readl_relaxed_no_log(arch_counter_base + CNTPCT_LO);
-		tmp_hi = readl_relaxed_no_log(arch_counter_base + CNTPCT_HI);
-	} while (pct_hi != tmp_hi);
-
-	return ((u64) pct_hi << 32) | pct_lo;
+	return arch_counter_get_cntvct();
 }
-
-static notrace u64 arch_counter_get_cntvct_mem(void)
-{
-	u32 vct_lo, vct_hi, tmp_hi;
-
-	do {
-		vct_hi = readl_relaxed_no_log(arch_counter_base + CNTVCT_HI);
-		vct_lo = readl_relaxed_no_log(arch_counter_base + CNTVCT_LO);
-		tmp_hi = readl_relaxed_no_log(arch_counter_base + CNTVCT_HI);
-	} while (vct_hi != tmp_hi);
-
-	return ((u64) vct_hi << 32) | vct_lo;
-}
-
-/*
- * Default to cp15 based access because arm64 uses this function for
- * sched_clock() before DT is probed and the cp15 method is guaranteed
- * to exist on arm64. arm doesn't use this before DT is probed so even
- * if we don't have the cp15 accessors we won't have a problem.
- */
-u64 (*arch_timer_read_counter)(void) = arch_counter_get_cntvct_cp15;
 
 static cycle_t arch_counter_read(struct clocksource *cs)
 {
@@ -442,20 +413,6 @@ static cycle_t arch_counter_read(struct clocksource *cs)
 static cycle_t arch_counter_read_cc(const struct cyclecounter *cc)
 {
 	return arch_counter_get_cntvct();
-}
-
-u64 arch_counter_get_cntpct(void)
-{
-	if (arch_timer_read_counter == arch_counter_get_cntvct_cp15)
-		return arch_counter_get_cntpct_cp15();
-	else
-		return arch_counter_get_cntpct_mem();
-}
-EXPORT_SYMBOL(arch_counter_get_cntpct);
-
-u64 arch_counter_get_cntvct(void)
-{
-	return arch_timer_read_counter();
 }
 EXPORT_SYMBOL(arch_counter_get_cntvct);
 
@@ -575,6 +532,12 @@ static int __init arch_timer_register(void)
 		err = -ENOMEM;
 		goto out;
 	}
+
+	clocksource_register_hz(&clocksource_counter, arch_timer_rate);
+	cyclecounter.mult = clocksource_counter.mult;
+	cyclecounter.shift = clocksource_counter.shift;
+	timecounter_init(&timecounter, &cyclecounter,
+			 arch_counter_get_cntvct());
 
 	if (arch_timer_use_virtual) {
 		ppi = arch_timer_ppi[VIRT_PPI];

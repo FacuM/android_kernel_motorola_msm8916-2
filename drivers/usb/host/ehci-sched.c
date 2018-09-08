@@ -1405,7 +1405,7 @@ iso_stream_schedule (
 			 * no matter what.
 			 */
 			else if (start + span - period < now2) {
-				ehci_dbg(ehci, "iso underrun %pK (%u+%u < %u)\n",
+				ehci_dbg(ehci, "iso underrun %p (%u+%u < %u)\n",
 						urb, start + base,
 						span - period, now2 + base);
 			}

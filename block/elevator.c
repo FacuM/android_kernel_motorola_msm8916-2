@@ -229,9 +229,7 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	err = e->ops.elevator_init_fn(q, e);
-	if (err)
-		elevator_put(e);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(elevator_init);
 
