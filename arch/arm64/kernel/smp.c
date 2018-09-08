@@ -163,6 +163,8 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 */
 	smp_store_cpu_info(cpu);
 
+	notify_cpu_starting(cpu);
+
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
 	 * the CPU migration code to notice that the CPU is online
@@ -174,14 +176,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	local_dbg_enable();
 	local_irq_enable();
 	local_async_enable();
-
-	/*
-	 * Enable GIC and timers.
-	 */
-	notify_cpu_starting(cpu);
-
-	local_irq_enable();
-	local_fiq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us

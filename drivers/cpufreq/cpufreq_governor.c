@@ -46,10 +46,27 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 	unsigned int ignore_nice;
 	unsigned int j;
 
-	if (dbs_data->cdata->governor == GOV_ONDEMAND)
+	if (dbs_data->cdata->governor == GOV_ONDEMAND) {
+		struct od_cpu_dbs_info_s *od_dbs_info =
+				dbs_data->cdata->get_cpu_dbs_info_s(cpu);
+
+		/*
+		 * Sometimes, the ondemand governor uses an additional
+		 * multiplier to give long delays. So apply this multiplier to
+		 * the 'sampling_rate', so as to keep the wake-up-from-idle
+		 * detection logic a bit conservative.
+		 */
+		sampling_rate = od_tuners->sampling_rate;
+		sampling_rate *= od_dbs_info->rate_mult;
+
 		ignore_nice = od_tuners->ignore_nice_load;
-	else
+	} else if (dbs_data->cdata->governor == GOV_ELEMENTALX) {
+		sampling_rate = ex_tuners->sampling_rate;
+		ignore_nice = ex_tuners->ignore_nice_load;
+	} else {
+		sampling_rate = cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice_load;
+	}
 
 	policy = cdbs->cur_policy;
 
@@ -159,8 +176,9 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 {
 	int i;
 
+	mutex_lock(&cpufreq_governor_lock);
 	if (!policy->governor_enabled)
-		return;
+		goto out_unlock;
 
 	if (!all_cpus) {
 		/*
@@ -414,6 +432,11 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		cs_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);
 		sampling_rate = cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice_load;
+	} else if (dbs_data->cdata->governor == GOV_ELEMENTALX) {
+		ex_tuners = dbs_data->tuners;
+		ex_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);
+		sampling_rate = ex_tuners->sampling_rate;
+		ignore_nice = ex_tuners->ignore_nice_load;
 	} else {
 		od_tuners = dbs_data->tuners;
 		od_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);

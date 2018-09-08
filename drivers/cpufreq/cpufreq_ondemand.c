@@ -627,11 +627,6 @@ static int od_init(struct dbs_data *dbs_data, struct cpufreq_policy *policy)
 			jiffies_to_usecs(10);
 	}
 
-	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
-	tuners->ignore_nice_load = 0;
-	tuners->powersave_bias = default_powersave_bias;
-	tuners->io_is_busy = should_io_be_busy();
-
 	dbs_data->tuners = tuners;
 	mutex_init(&dbs_data->mutex);
 	return 0;

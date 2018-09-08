@@ -293,6 +293,7 @@ el1_sp_pc:
 	 * Stack or PC alignment exception handling
 	 */
 	mrs	x0, far_el1
+	enable_dbg
 	mov	x2, sp
 	b	do_sp_pc_abort
 el1_undef:

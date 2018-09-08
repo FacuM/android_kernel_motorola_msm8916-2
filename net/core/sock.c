@@ -1871,15 +1871,11 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 		put_page(pfrag->page);
 	}
 
-	/* We restrict high order allocations to users that can afford to wait */
-	order = (sk->sk_allocation & __GFP_WAIT) ? SKB_FRAG_PAGE_ORDER : 0;
-
-	do {
-		gfp_t gfp = sk->sk_allocation;
-
-		if (order)
-			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
-		pfrag->page = alloc_pages(gfp, order);
+	pfrag->offset = 0;
+	if (SKB_FRAG_PAGE_ORDER) {
+		pfrag->page = alloc_pages(gfp | __GFP_COMP |
+					  __GFP_NOWARN | __GFP_NORETRY,
+					  SKB_FRAG_PAGE_ORDER);
 		if (likely(pfrag->page)) {
 			pfrag->size = PAGE_SIZE << SKB_FRAG_PAGE_ORDER;
 			return true;

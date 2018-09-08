@@ -195,9 +195,11 @@ static u64 div_round64(u64 dividend, u32 divisor)
  */
 static void get_typical_interval(struct menu_device *data)
 {
-	int i = 0, divisor = 0;
-	uint64_t max = 0, avg = 0, stddev = 0;
-	int64_t thresh = LLONG_MAX; /* Discard outliers above this value. */
+	int i, divisor;
+	unsigned int max, thresh;
+	uint64_t avg, stddev;
+
+	thresh = UINT_MAX; /* Discard outliers above this value */
 
 again:
 
@@ -264,16 +266,11 @@ again:
 	 * This can deal with workloads that have long pauses interspersed
 	 * with sporadic activity with a bunch of short pauses.
 	 */
-	if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
-							|| stddev <= 20) {
-		data->predicted_us = avg;
+	if ((divisor * 4) <= INTERVALS * 3)
 		return;
 
-	} else if ((divisor * 4) > INTERVALS * 3) {
-		/* Exclude the max interval */
-		thresh = max - 1;
-		goto again;
-	}
+	thresh = max - 1;
+	goto again;
 }
 
 /**
@@ -286,8 +283,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	struct menu_device *data = this_cpu_ptr(&menu_devices);
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
-	int multiplier;
-	struct timespec t;
+	unsigned int interactivity_req;
+	unsigned long nr_iowaiters;
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
@@ -318,6 +315,15 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	get_typical_interval(data);
 
 	/*
+	 * Performance multiplier defines a minimum predicted idle
+	 * duration / latency ratio. Adjust the latency limit if
+	 * necessary.
+	 */
+	interactivity_req = data->predicted_us / performance_multiplier(nr_iowaiters);
+	if (latency_req > interactivity_req)
+		latency_req = interactivity_req;
+
+	/*
 	 * We want to default to C1 (hlt), not to busy polling
 	 * unless the timer is happening really really soon.
 	 */
@@ -342,7 +348,6 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			continue;
 
 		data->last_state_idx = i;
-		data->exit_us = s->exit_latency;
 	}
 
 	return data->last_state_idx;
@@ -447,6 +452,7 @@ static int menu_enable_device(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev)
 {
 	struct menu_device *data = &per_cpu(menu_devices, dev->cpu);
+	int i;
 
 	memset(data, 0, sizeof(struct menu_device));
 

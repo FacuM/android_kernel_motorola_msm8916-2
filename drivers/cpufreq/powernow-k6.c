@@ -94,7 +94,7 @@ static int powernow_k6_get_cpu_multiplier(void)
 
 	local_irq_enable();
 
-	return clock_ratio[register_to_index[(invalue >> 5)&7]].index;
+	return clock_ratio[register_to_index[(invalue >> 5)&7]].driver_data;
 }
 
 static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
@@ -216,7 +216,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	}
 	if (param_max_multiplier) {
 		for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
-			if (clock_ratio[i].index == param_max_multiplier) {
+			if (clock_ratio[i].driver_data == param_max_multiplier) {
 				max_multiplier = param_max_multiplier;
 				goto have_max_multiplier;
 			}

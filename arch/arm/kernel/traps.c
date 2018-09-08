@@ -36,6 +36,8 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 
+#include <trace/events/exception.h>
+
 static const char *handler[]= {
 	"prefetch abort",
 	"data abort",

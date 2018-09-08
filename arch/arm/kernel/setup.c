@@ -607,14 +607,7 @@ void __init dump_machine_table(void)
 
 int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 {
-	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 	u64 aligned_start;
-
-	if (meminfo.nr_banks >= NR_BANKS) {
-		printk(KERN_CRIT "NR_BANKS too low, "
-			"ignoring memory at 0x%08llx\n", (long long)start);
-		return -EINVAL;
-	}
 
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
@@ -656,8 +649,7 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 		aligned_start = PHYS_OFFSET;
 	}
 
-	bank->start = aligned_start;
-	bank->size = size & ~(phys_addr_t)(PAGE_SIZE - 1);
+	size = size & ~(phys_addr_t)(PAGE_SIZE - 1);
 
 	/*
 	 * Check whether this memory region has non-zero size or

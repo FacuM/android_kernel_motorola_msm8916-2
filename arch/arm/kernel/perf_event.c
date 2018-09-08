@@ -328,13 +328,28 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 
 	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, armpmu, armpmu->handle_irq);
 	else
-		ret = armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);
 	return ret;
+}
+
+static int
+armpmu_generic_request_irq(int irq, irq_handler_t *handle_irq, void *dev_id)
+{
+        return request_irq(irq, *handle_irq,
+                        IRQF_DISABLED | IRQF_NOBALANCING,
+                        "arm-pmu", dev_id);
+}
+
+static void
+armpmu_generic_free_irq(int irq, void *dev_id)
+{
+        if (irq >= 0)
+                free_irq(irq, dev_id);
 }
 
 static void

@@ -684,7 +684,7 @@ void __init efi_init(void)
 	if (efi_memmap_init())
 		return;
 
-	set_bit(EFI_MEMMAP, &x86_efi_facility);
+	set_bit(EFI_MEMMAP, &efi.flags);
 
 #if EFI_DEBUG
 	print_efi_memmap();

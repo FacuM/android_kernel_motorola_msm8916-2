@@ -886,6 +886,11 @@ remove_finished_td:
 		ep->stopped_trb = NULL;
 	}
 
+	if ((xhci->quirks & XHCI_TR_DEQ_RESET_QUIRK) &&
+			list_empty(&ep->ring->td_list) &&
+			!(ep->ep_state & SET_DEQ_PENDING))
+		xhci_reset_ep_ring(xhci, slot_id, ep_ring, ep_index);
+
 	/*
 	 * Drop the lock and complete the URBs in the cancelled TD list.
 	 * New TDs to be cancelled might be added to the end of the list before

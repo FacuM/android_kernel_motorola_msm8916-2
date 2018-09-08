@@ -3138,7 +3138,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		goto out;
 	}
 
-	mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+	mmc_blk_write_packing_control(mq, req);
+
+	clear_bit(MMC_QUEUE_NEW_REQUEST, &mq->flags);
+	clear_bit(MMC_QUEUE_URGENT_REQUEST, &mq->flags);
 	if (cmd_flags & REQ_DISCARD) {
 		/* complete ongoing async transfer before issuing discard */
 		if (card->host->areq)
@@ -3163,8 +3166,17 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	}
 
 out:
-	if ((!req && !(mq->flags & MMC_QUEUE_NEW_REQUEST)) ||
-	     (cmd_flags & MMC_REQ_SPECIAL_MASK))
+	/*
+	 * packet burst is over, when one of the following occurs:
+	 * - no more requests and new request notification is not in progress
+	 * - urgent notification in progress and current request is not urgent
+	 *   (all existing requests completed or reinserted to the block layer)
+	 */
+	if ((!req && !(test_bit(MMC_QUEUE_NEW_REQUEST, &mq->flags))) ||
+			((test_bit(MMC_QUEUE_URGENT_REQUEST, &mq->flags)) &&
+			 !(cmd_flags & MMC_REQ_NOREINSERT_MASK))) {
+		if (mmc_card_need_bkops(card))
+			mmc_start_bkops(card, false);
 		/*
 		 * Release host when there are no more requests
 		 * and after special request(discard, flush) is done.

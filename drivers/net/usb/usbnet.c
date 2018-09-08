@@ -799,7 +799,7 @@ int usbnet_stop (struct net_device *net)
 	 */
 	dev->flags = 0;
 	del_timer_sync (&dev->delay);
-	tasklet_kill (&dev->bh);
+	cancel_work_sync(&dev->bh_w);
 	if (!pm)
 		usb_autopm_put_interface(dev->intf);
 
@@ -1378,7 +1378,7 @@ static void usbnet_bh (unsigned long param)
 	 */
 	if (waitqueue_active(&dev->wait)) {
 		if (dev->txq.qlen + dev->rxq.qlen + dev->done.qlen == 0)
-			wake_up_all(&dev->wait);
+			wake_up_all(&unlink_wakeup);
 
 	// or are we maybe short a few urbs?
 	} else if (netif_running (dev->net) &&
