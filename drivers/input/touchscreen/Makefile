@@ -90,3 +90,4 @@ obj-$(CONFIG_TOUCHSCREEN_TOUCHX)	+= touchx.o
 obj-$(CONFIG_TOUCHBOOST_CONTROL) += touchboost.o
 obj-$(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) += doubletap2wake.o
 obj-$(CONFIG_SWEEP2SLEEP)		+= sweep2sleep.o
+obj-$(CONFIG_TOUCHBOOST_CONTROL) += touchboost.o
