@@ -1766,7 +1766,6 @@ static inline void strtomac(char * buf, unsigned char macaddr[6]) {
             "%s,Can not parse mac address: %s", __func__,buf);
 }
 #endif
-
 /**------------------------------------------------------------------------
 
   \brief vos_nv_readMultiMacAddress() - return the Multiple MAC addresses
