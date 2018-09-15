@@ -37,6 +37,7 @@ then
   quote USER $FTP_USER
   quote PASS $FTP_PASS
   binary
+  passive
   put $FILE /$DONE_ZIP
   put arch/arm/boot/zImage /zImage_$DEVICE
   bye
