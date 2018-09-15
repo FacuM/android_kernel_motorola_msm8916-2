@@ -386,8 +386,10 @@ struct address_space_operations {
 	 * migrate the contents of a page to the specified target. If sync
 	 * is false, it must not block.
 	 */
-	int (*migratepage) (struct address_space *,
+	int (*migratepage)(struct address_space *,
 			struct page *, struct page *, enum migrate_mode);
+	int (*isolatepage)(struct page *);
+	void (*putbackpage)(struct page *);
 	int (*launder_page) (struct page *);
 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
 					unsigned long);
@@ -1521,6 +1523,7 @@ typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 struct dir_context {
 	const filldir_t actor;
 	loff_t pos;
+	bool romnt;
 };
 
 static inline bool dir_emit(struct dir_context *ctx,
@@ -2737,3 +2740,4 @@ static inline void inode_has_no_xattr(struct inode *inode)
 }
 
 #endif /* _LINUX_FS_H */
+
